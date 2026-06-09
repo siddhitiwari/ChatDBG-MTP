@@ -8,6 +8,7 @@ from chatdbg.util.fix import apply_fix
 from chatdbg.util.prompts import build_postmortem_prompt, postmortem_instructions
 
 from .context import build_source_context
+from .git_context import build_git_context
 from .parser import parse_python_traceback
 from .repo import build_repo_context, find_relevant_files
 
@@ -25,8 +26,12 @@ def _run_analysis(text: str, repo_path: Optional[str] = None) -> None:
         relevant = find_relevant_files(crash, repo_path)
         repo_context = build_repo_context(relevant)
 
+    git_context = build_git_context(crash)
+
     functions = [apply_fix]
-    prompt = build_postmortem_prompt(crash.raw_traceback, source_context, repo_context)
+    prompt = build_postmortem_prompt(
+        crash.raw_traceback, source_context, repo_context, git_context
+    )
     instructions = postmortem_instructions(functions)
 
     log = ChatDBGLog(

@@ -57,12 +57,14 @@ def build_postmortem_prompt(
     raw_traceback: str,
     source_context: str,
     repo_context: str = "",
+    git_context: str = "",
     user_text: str = "",
 ) -> str:
     return _concat_prompt(
         _wrap_it("The program crashed with this traceback", raw_traceback),
         source_context,
         repo_context,
+        git_context,
         _user_text_it(user_text),
     )
 
