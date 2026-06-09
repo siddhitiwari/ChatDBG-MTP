@@ -1,0 +1,41 @@
+[
+  {"benchmark_id": "testme_zero_division",    "variant": "baseline",   "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": false, "fix_correct": true,  "tokens": 1821, "cost": 0.021, "time": 8.3},
+  {"benchmark_id": "testme_zero_division",    "variant": "with_repo",  "exception_match": true,  "keyword_score": 1.00, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2104, "cost": 0.024, "time": 9.1},
+  {"benchmark_id": "testme_zero_division",    "variant": "with_git",   "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2210, "cost": 0.025, "time": 9.7},
+  {"benchmark_id": "testme_zero_division",    "variant": "with_all",   "exception_match": true,  "keyword_score": 1.00, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2541, "cost": 0.029, "time": 10.8},
+
+  {"benchmark_id": "sample_swapped_args",     "variant": "baseline",   "exception_match": true,  "keyword_score": 0.40, "fix_proposed": true,  "test_generated": false, "fix_correct": false, "tokens": 1644, "cost": 0.019, "time": 7.8},
+  {"benchmark_id": "sample_swapped_args",     "variant": "with_repo",  "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2231, "cost": 0.026, "time": 10.2},
+  {"benchmark_id": "sample_swapped_args",     "variant": "with_git",   "exception_match": true,  "keyword_score": 0.60, "fix_proposed": true,  "test_generated": false, "fix_correct": false, "tokens": 1890, "cost": 0.022, "time": 8.9},
+  {"benchmark_id": "sample_swapped_args",     "variant": "with_all",   "exception_match": true,  "keyword_score": 1.00, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2680, "cost": 0.031, "time": 11.5},
+
+  {"benchmark_id": "off_by_one_index",        "variant": "baseline",   "exception_match": true,  "keyword_score": 0.60, "fix_proposed": true,  "test_generated": false, "fix_correct": true,  "tokens": 1730, "cost": 0.020, "time": 8.1},
+  {"benchmark_id": "off_by_one_index",        "variant": "with_repo",  "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2050, "cost": 0.024, "time": 9.4},
+  {"benchmark_id": "off_by_one_index",        "variant": "with_git",   "exception_match": true,  "keyword_score": 1.00, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2340, "cost": 0.027, "time": 10.3},
+  {"benchmark_id": "off_by_one_index",        "variant": "with_all",   "exception_match": true,  "keyword_score": 1.00, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2620, "cost": 0.030, "time": 11.1},
+
+  {"benchmark_id": "none_attribute_access",   "variant": "baseline",   "exception_match": true,  "keyword_score": 0.40, "fix_proposed": false, "test_generated": false, "fix_correct": null,  "tokens": 1510, "cost": 0.018, "time": 7.2},
+  {"benchmark_id": "none_attribute_access",   "variant": "with_repo",  "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2140, "cost": 0.025, "time": 9.8},
+  {"benchmark_id": "none_attribute_access",   "variant": "with_git",   "exception_match": true,  "keyword_score": 0.60, "fix_proposed": true,  "test_generated": false, "fix_correct": true,  "tokens": 1980, "cost": 0.023, "time": 9.1},
+  {"benchmark_id": "none_attribute_access",   "variant": "with_all",   "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2490, "cost": 0.028, "time": 10.6},
+
+  {"benchmark_id": "type_mismatch",           "variant": "baseline",   "exception_match": false, "keyword_score": 0.40, "fix_proposed": true,  "test_generated": false, "fix_correct": false, "tokens": 1590, "cost": 0.018, "time": 7.5},
+  {"benchmark_id": "type_mismatch",           "variant": "with_repo",  "exception_match": true,  "keyword_score": 0.60, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2090, "cost": 0.024, "time": 9.5},
+  {"benchmark_id": "type_mismatch",           "variant": "with_git",   "exception_match": true,  "keyword_score": 0.60, "fix_proposed": true,  "test_generated": false, "fix_correct": false, "tokens": 1870, "cost": 0.022, "time": 8.7},
+  {"benchmark_id": "type_mismatch",           "variant": "with_all",   "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2310, "cost": 0.027, "time": 10.4},
+
+  {"benchmark_id": "key_error_dict",          "variant": "baseline",   "exception_match": true,  "keyword_score": 0.60, "fix_proposed": true,  "test_generated": false, "fix_correct": true,  "tokens": 1680, "cost": 0.019, "time": 7.9},
+  {"benchmark_id": "key_error_dict",          "variant": "with_repo",  "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2000, "cost": 0.023, "time": 9.2},
+  {"benchmark_id": "key_error_dict",          "variant": "with_git",   "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2150, "cost": 0.025, "time": 9.8},
+  {"benchmark_id": "key_error_dict",          "variant": "with_all",   "exception_match": true,  "keyword_score": 1.00, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2480, "cost": 0.028, "time": 10.9},
+
+  {"benchmark_id": "recursion_overflow",      "variant": "baseline",   "exception_match": true,  "keyword_score": 0.60, "fix_proposed": false, "test_generated": false, "fix_correct": null,  "tokens": 1550, "cost": 0.018, "time": 7.3},
+  {"benchmark_id": "recursion_overflow",      "variant": "with_repo",  "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": false, "fix_correct": true,  "tokens": 2010, "cost": 0.023, "time": 9.3},
+  {"benchmark_id": "recursion_overflow",      "variant": "with_git",   "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2200, "cost": 0.025, "time": 10.1},
+  {"benchmark_id": "recursion_overflow",      "variant": "with_all",   "exception_match": true,  "keyword_score": 1.00, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2560, "cost": 0.029, "time": 11.3},
+
+  {"benchmark_id": "value_out_of_range",      "variant": "baseline",   "exception_match": true,  "keyword_score": 0.40, "fix_proposed": true,  "test_generated": false, "fix_correct": false, "tokens": 1600, "cost": 0.018, "time": 7.6},
+  {"benchmark_id": "value_out_of_range",      "variant": "with_repo",  "exception_match": true,  "keyword_score": 0.60, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2020, "cost": 0.023, "time": 9.4},
+  {"benchmark_id": "value_out_of_range",      "variant": "with_git",   "exception_match": true,  "keyword_score": 0.60, "fix_proposed": true,  "test_generated": false, "fix_correct": false, "tokens": 1910, "cost": 0.022, "time": 8.9},
+  {"benchmark_id": "value_out_of_range",      "variant": "with_all",   "exception_match": true,  "keyword_score": 0.80, "fix_proposed": true,  "test_generated": true,  "fix_correct": true,  "tokens": 2410, "cost": 0.027, "time": 10.7}
+]
