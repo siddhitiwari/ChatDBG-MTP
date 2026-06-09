@@ -3,52 +3,57 @@
 
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
-\usepackage{algorithmic}
 \usepackage{graphicx}
 \usepackage{textcomp}
-\usepackage{xcolor}
+\usepackage[dvipsnames,table]{xcolor}
 \usepackage{booktabs}
-\usepackage{array}
 \usepackage{url}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,calc,backgrounds,decorations.pathreplacing}
+
+% safe named colours used throughout
+\definecolor{cBlue}  {rgb}{0.42,0.68,0.84}
+\definecolor{cDkBlue}{rgb}{0.19,0.51,0.74}
+\definecolor{cOrange}{rgb}{0.99,0.55,0.24}
+\definecolor{cRed}   {rgb}{0.90,0.33,0.05}
+\definecolor{cNavy}  {rgb}{0.18,0.18,0.37}
+
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
 \begin{document}
 
-\title{ChatDBG-MTP: Extending AI-Assisted Debugging with Post-Mortem Analysis,
-Repository-Aware Context, and Automated Repair}
+\title{ChatDBG-MTP: Extending AI-Assisted Debugging with\\
+Post-Mortem Analysis, Repository-Aware Context,\\
+and Automated Repair}
 
 \author{
 \IEEEauthorblockN{Siddhi Tiwari}
 \IEEEauthorblockA{
-\textit{Department of Computer Science \& Engineering}\\
-\textit{[Your Institution]}\\
-[City, Country]\\
+\textit{Dept.\ of Computer Science \& Engineering}\\
+\textit{[Your Institution], [City, Country]}\\
 siddhitiwari0109@gmail.com
 }
 }
 
 \maketitle
 
+%% ─── Abstract ────────────────────────────────────────────────────────────────
 \begin{abstract}
 Debugging is one of the most time-consuming activities in software development.
-Existing AI-assisted debugging tools, including the original ChatDBG, require an
-active debugger session, limiting their use to crashes reproducible in a live
-environment. In this work we present \textbf{ChatDBG-MTP}, an extended version of
-ChatDBG that introduces five major contributions: (1)~\textbf{post-mortem analysis}
-that runs on crash log files without a live process, (2)~a \textbf{zero-friction
-exception hook} that auto-triggers analysis on any unhandled exception,
-(3)~\textbf{repository-aware context} that follows import graphs to provide the LLM
-with a broader view of the codebase, (4)~\textbf{git-aware context} that surfaces
-recent commit history, blame information, and diffs to support regression
-detection, and (5)~\textbf{automated fix application and test generation} that
-complete the full repair cycle. We evaluate ChatDBG-MTP on 8 benchmark programs
-across four configuration variants. Our results show that adding repository
-context improves root-cause keyword coverage from 57\% to 77\% (+20~pp),
-fix correctness from 50\% to 75\% (+25~pp), and test generation from 12\%
-to 75\% (+63~pp). Combining repository and git context achieves the best
-overall accuracy (89\% keyword coverage, 88\% fix correctness) with a
-modest cost increase of 38\%.
+Existing AI-assisted debugging tools, including ChatDBG, require an active
+debugger session, limiting their applicability to crashes reproducible in a live
+environment. This paper presents \textbf{ChatDBG-MTP}, which introduces five
+contributions: (1)~\emph{post-mortem analysis} from crash log files,
+(2)~a \emph{zero-friction exception hook} via \texttt{sys.excepthook},
+(3)~\emph{repository-aware context} through import-graph traversal,
+(4)~\emph{git-aware context} using \texttt{log}/\texttt{blame}/\texttt{diff},
+and (5)~\emph{automated fix application and test generation}.
+Evaluating on 8 benchmarks across four variants, repository context alone
+improves root-cause keyword coverage from 57\,\% to 77\,\% (+20\,pp) and fix
+correctness from 50\,\% to 75\,\% (+25\,pp). The full \emph{+Repo+Git}
+configuration achieves 89\,\% keyword coverage and 88\,\% fix correctness at
+only a 38\,\% cost increase over the baseline.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -56,354 +61,373 @@ debugging, large language models, post-mortem analysis, automated program repair
 fault localization, git-aware debugging, test generation
 \end{IEEEkeywords}
 
-%-----------------------------------------------------------------------
+%% ─── 1. Introduction ─────────────────────────────────────────────────────────
 \section{Introduction}
-%-----------------------------------------------------------------------
+\IEEEPARstart{M}{odern} software crashes in many contexts where a live debugger
+is unavailable: production environments, CI pipelines, and remote machines.
+Even when a debugger is available, AI assistants such as
+ChatDBG~\cite{chatdbg} only analyze the immediate stack trace, missing the
+broader codebase context that could accelerate diagnosis.
 
-Modern software crashes in many contexts where a live debugger is unavailable:
-production environments, continuous integration pipelines, remote machines, and
-crash reports submitted by end users. Even when a debugger is available, AI
-assistants such as ChatDBG~\cite{chatdbg} only analyze the immediate stack trace,
-missing broader codebase context that could accelerate diagnosis.
+We identify three key gaps: \emph{(i)~Availability}---tools require a live
+process; \emph{(ii)~Context}---analysis is limited to the call stack, ignoring
+imported modules and recent code changes; \emph{(iii)~Completeness}---tools
+explain bugs but do not apply fixes or write regression tests.
 
-We identify three key gaps in existing AI-assisted debugging:
+ChatDBG-MTP addresses all three through: a post-mortem mode
+(\texttt{chatdbg --analyze crash.log}), a zero-friction exception hook
+(\texttt{chatdbg.install()}), repository context (\texttt{--repo}), git context
+(automatic), and an automated repair pipeline (\texttt{apply\_fix},
+\texttt{generate\_test}).
 
-\begin{enumerate}
-\item \textbf{Availability} --- tools require a live debugger session, excluding
-  the majority of real-world crashes captured in logs.
-\item \textbf{Context} --- analysis is limited to the call stack, ignoring imported
-  modules, class hierarchies, and recent code changes that frequently contain
-  the root cause.
-\item \textbf{Completeness} --- tools explain bugs but do not close the repair
-  loop: applying the fix and writing a regression test.
-\end{enumerate}
-
-ChatDBG-MTP addresses all three gaps through the following contributions:
-\begin{itemize}
-  \item A \textbf{post-mortem analysis} mode (\texttt{chatdbg --analyze crash.log})
-    that parses Python tracebacks from text files and runs LLM analysis without
-    any running process.
-  \item A \textbf{zero-friction exception hook} (\texttt{chatdbg.install()}) that
-    registers a \texttt{sys.excepthook} so every unhandled exception is
-    automatically analyzed.
-  \item A \textbf{repository context} mechanism (\texttt{--repo}) that traverses
-    the import graph from crashed frames to supply relevant source files.
-  \item A \textbf{git context} mechanism that automatically includes
-    \texttt{git log}, \texttt{git blame}, and \texttt{git diff} output for each
-    crashed file.
-  \item An \textbf{automated repair} pipeline using two LLM tools:
-    \texttt{apply\_fix} and \texttt{generate\_test}.
-  \item An \textbf{evaluation harness} for systematic comparison of configuration
-    variants.
-\end{itemize}
-
-%-----------------------------------------------------------------------
+%% ─── 2. Background ────────────────────────────────────────────────────────────
 \section{Background and Related Work}
-%-----------------------------------------------------------------------
 
 \subsection{ChatDBG}
-
-ChatDBG~\cite{chatdbg} integrates an LLM into the Python \texttt{pdb}/\texttt{ipdb}
-debugger and the native GDB/LLDB debuggers. When the user types \texttt{why},
-ChatDBG sends the stack trace, error message, and local variable values to the
-LLM, which can call back into the debugger via registered functions
-(\texttt{debug}, \texttt{info}, \texttt{slice}). ChatDBG uses \texttt{litellm}
-to support multiple model providers.
+ChatDBG~\cite{chatdbg} integrates an LLM into Python \texttt{pdb/ipdb} and native
+GDB/LLDB.  When the user types \texttt{why}, it sends the stack trace and locals
+to the model, which can call back via \texttt{debug}, \texttt{info}, and
+\texttt{slice}. ChatDBG-MTP reuses its \texttt{Assistant} class, YAML logging,
+and listener infrastructure.
 
 \subsection{Automated Program Repair}
-
-APR tools such as GenProg~\cite{genprog}, Prophet~\cite{prophet}, and
-Angelix~\cite{angelix} use search or symbolic analysis to generate patches.
-Recent LLM-based approaches (e.g., AlphaRepair, ChatRepair) prompt models with
-the buggy code and test suite. Unlike these tools, ChatDBG-MTP operates at
-debugging time on a crashed program, without requiring a pre-existing test suite
-or formal specification.
+GenProg~\cite{genprog}, Prophet~\cite{prophet}, and Angelix~\cite{angelix} apply
+search or symbolic analysis to patch bugs. LLM-based successors (AlphaRepair,
+ChatRepair) require a pre-existing test suite. ChatDBG-MTP operates at run time
+on a crashed program with no prior test infrastructure.
 
 \subsection{Fault Localization}
-
-Spectrum-based fault localization (e.g., Tarantula~\cite{tarantula},
-Ochiai) ranks suspicious statements based on test pass/fail patterns. Our
-approach is complementary: rather than ranking statements, we provide the LLM
-with rich context and rely on its reasoning to identify the root cause.
+Spectrum-based FL (Tarantula~\cite{tarantula}, Ochiai) ranks suspicious
+statements by test coverage. Our approach is complementary: we provide rich
+context and rely on LLM reasoning.
 
 \subsection{LLM Code Understanding}
+Providing extra context---imports, docstrings, related code---improves
+LLM accuracy on code tasks~\cite{codex,retrieval_prompts}. The \texttt{--repo}
+flag operationalises this via automatic import-graph traversal.
 
-Recent work shows that LLMs can reason about code at multiple levels of
-abstraction~\cite{codex}. Providing additional context---function signatures,
-docstrings, related code---consistently improves accuracy~\cite{retrieval_prompts}.
-Our \texttt{--repo} feature operationalizes this by automatically surfacing the
-most relevant context via import graph traversal.
-
-%-----------------------------------------------------------------------
+%% ─── 3. System Design ────────────────────────────────────────────────────────
 \section{System Design}
-%-----------------------------------------------------------------------
 
-\subsection{Architecture Overview}
+\subsection{Architecture}
+Fig.~\ref{fig:arch} shows the post-mortem pipeline. A crash log or in-memory
+traceback is parsed, enriched with up to three context layers, and forwarded
+to the LLM assistant.  The LLM may invoke \texttt{apply\_fix} and
+\texttt{generate\_test} to close the repair loop.
 
-ChatDBG-MTP extends the original ChatDBG pipeline with a new post-mortem pathway
-that runs independently of any live debugger. The pipeline parses the traceback,
-builds source/repo/git context, constructs a prompt, and invokes the LLM
-assistant, which may call back into \texttt{apply\_fix} and
-\texttt{generate\_test}. The interactive pdb mode and post-mortem mode share
-the same \texttt{Assistant} class, listeners, and YAML logging infrastructure.
+%% ── TikZ architecture diagram ─────────────────────────────────────────────
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\scriptsize,
+  every node/.style={align=center},
+  box/.style={
+    rounded corners=2pt,
+    draw=#1!70!black, fill=#1!15,
+    text width=2.9cm, minimum height=0.52cm,
+    inner sep=3pt
+  },
+  arr/.style={-{Stealth[length=4pt]}, thick, gray!60!black},
+  lbl/.style={font=\tiny\itshape, gray!55!black},
+]
+
+\node[box=cNavy, text=white, fill=cNavy, text width=3.5cm]
+  (inp) {\textbf{Input:} crash log / traceback};
+
+\node[box=cBlue,   below=6pt of inp]  (parse)  {parse\_python\_traceback()};
+\node[box=cBlue,   below=4pt of parse](src)    {build\_source\_context()\\{\tiny disk, user frames only}};
+\node[box=cDkBlue, below=4pt of src]  (repo)   {build\_repo\_context()\\{\tiny import graph, depth 2}};
+\node[box=cOrange, below=4pt of repo] (git)    {build\_git\_context()\\{\tiny log / blame / diff}};
+\node[box=cRed,    below=6pt of git]  (prompt) {build\_postmortem\_prompt()};
+
+\node[box=cNavy, text=white, fill=cNavy, below=6pt of prompt, text width=3.6cm]
+  (llm) {\textbf{LLM Assistant} (GPT-4o)};
+
+\node[box=cDkBlue, below left=8pt and -4pt of llm, text width=1.4cm]
+  (fix)  {apply\_fix()};
+\node[box=cOrange, below right=8pt and -4pt of llm, text width=1.5cm]
+  (test) {generate\_test()};
+
+\node[lbl, below=4pt of fix]  {patched file};
+\node[lbl, below=4pt of test] {pytest test};
+
+\draw[arr] (inp)  -- (parse);
+\draw[arr] (parse)-- (src);
+\draw[arr] (src)  -- (repo);
+\draw[arr] (repo) -- (git);
+\draw[arr] (git)  -- (prompt);
+\draw[arr] (prompt)--(llm);
+\draw[arr] (llm.south west) -- (fix.north);
+\draw[arr] (llm.south east) -- (test.north);
+
+% optional-layer brace
+\draw[decorate, decoration={brace,amplitude=3pt}, cDkBlue, thick]
+  ($(repo.north east)+(1.65cm,0)$) -- ($(src.south east)+(1.65cm,0)$)
+  node[midway, right=3pt, lbl, color=cDkBlue] {--repo};
+\draw[decorate, decoration={brace,amplitude=3pt}, cOrange, thick]
+  ($(git.north east)+(1.65cm,0)$) -- ($(git.south east)+(1.65cm,0)$)
+  node[midway, right=3pt, lbl, color=cOrange] {git};
+
+\end{tikzpicture}
+\caption{ChatDBG-MTP post-mortem pipeline. The dashed context layers
+  (\texttt{--repo}, git) are optional and controlled by flags.}
+\label{fig:arch}
+\end{figure}
+%% ─────────────────────────────────────────────────────────────────────────────
 
 \subsection{Post-Mortem Analysis}
-
-The \texttt{postmortem} package contains three components:
-
-\textbf{Parser} (\texttt{parser.py}): Parses Python tracebacks into a
-\texttt{CrashReport} dataclass containing \texttt{FrameInfo} records (filename,
-line number, function, source line) and the exception type/message. Handles
-chained exceptions, log files with embedded tracebacks, and exceptions
-without messages.
-
-\textbf{Context builder} (\texttt{context.py}): For each user-code frame,
-reads \texttt{context\_lines} lines around the crash point from disk using
-\texttt{linecache}. Library frames (\texttt{site-packages}, stdlib) are
-filtered out.
-
-\textbf{Analyzer} (\texttt{analyze.py}): Orchestrates the pipeline, creates
-the \texttt{Assistant} with \texttt{apply\_fix} and \texttt{generate\_test}
-tools, runs the LLM query, and logs results.
+The \texttt{postmortem} package contains: a \textbf{parser} that converts raw
+tracebacks into typed \texttt{CrashReport}/\texttt{FrameInfo} dataclasses; a
+\textbf{context builder} that reads source lines via \texttt{linecache},
+skipping library frames; and an \textbf{analyzer} that orchestrates the pipeline
+and logs to YAML.
 
 \subsection{Exception Hook}
-
-\texttt{chatdbg.install()} registers a \texttt{sys.excepthook} that:
-(1)~lets Python print the original traceback; (2)~formats the traceback as
-text using \texttt{traceback.format\_exception}; (3)~calls
-\texttt{analyze\_crash\_text()} in memory; (4)~silently skips
-\texttt{SystemExit} and \texttt{KeyboardInterrupt}; and (5)~catches all
-ChatDBG errors so they never mask the original exception.
+\texttt{chatdbg.install()} registers a \texttt{sys.excepthook} that
+(1)~preserves the original traceback output, (2)~formats the exception as text,
+(3)~calls \texttt{analyze\_crash\_text()} in-memory,
+(4)~skips \texttt{SystemExit}/\texttt{KeyboardInterrupt}, and
+(5)~swallows all ChatDBG errors to avoid masking the original exception.
 
 \subsection{Repository Context}
-
-\texttt{repo.py} traverses the local import graph starting from the files in
-the traceback. It collects all \texttt{.py} files under \texttt{--repo},
-seeds with files directly referenced in the crash frames, then parses
-\texttt{import} and \texttt{from ... import} statements using the \texttt{ast}
-module to find locally-defined dependencies to depth~2. Discovered files are
-formatted into the prompt within a token budget of~$\approx6{,}000$ tokens.
+\texttt{repo.py} seeds the traversal from crash-frame files, parses all
+\texttt{import}/\texttt{from...import} statements with the \texttt{ast} module
+to depth~2, and formats results within a $\approx$6,000-token budget.
 
 \subsection{Git-Aware Context}
+\texttt{git\_context.py} runs three commands per unique user-code file
+(Table~\ref{tab:git}), each with a 10\,s timeout, failing silently when git
+is absent.
 
-\texttt{git\_context.py} runs three \texttt{git} commands per unique user-code
-file via \texttt{subprocess}, as summarized in Table~\ref{tab:git_cmds}.
-All commands are timeout-protected (10\,s) and fail silently if git is
-unavailable.
-
-\begin{table}[htbp]
-\caption{Git Commands Used for Each Crashed File}
-\label{tab:git_cmds}
-\begin{center}
+\begin{table}[t]
+\centering
+\caption{Git Commands Collected per Crashed File}
+\label{tab:git}
+\small
 \begin{tabular}{ll}
-\hline
-\textbf{Command} & \textbf{Purpose} \\
-\hline
-\texttt{git log --oneline -8 <file>} & Recent commit history \\
-\texttt{git blame -L <s>,<e> <file>} & Last author/date of crash lines \\
-\texttt{git diff HEAD\textasciitilde1 -- <file>} & Changes in most recent commit \\
-\hline
+\toprule
+\textbf{Command} & \textbf{Information} \\
+\midrule
+\texttt{git log --oneline -8} & Recent commit messages \\
+\texttt{git blame -L s,e}     & Author/date of crash lines \\
+\texttt{git diff HEAD\textasciitilde1} & What changed last commit \\
+\bottomrule
 \end{tabular}
-\end{center}
 \end{table}
 
 \subsection{Automated Repair}
+\textbf{\texttt{apply\_fix}}: shows a unified diff and prompts \texttt{[y/N]}
+before writing. Normalises line endings for cross-platform compatibility.
+\textbf{\texttt{generate\_test}}: appends a pytest test designed to fail on
+buggy code and pass after the fix.
+Both bypass interactive prompts in eval mode (\texttt{CHATDBG\_EVAL=1}).
 
-Two LLM tool functions complete the repair cycle:
-
-\textbf{\texttt{apply\_fix(filename, old\_code, new\_code)}}: Shows a unified
-diff and prompts the user \texttt{[y/N]} before writing. Old-code matching
-uses line-ending-normalized comparison; CRLF is restored on write.
-
-\textbf{\texttt{generate\_test(filename, test\_code)}}: Generates a pytest
-test that reproduces the original crash. The test is designed to fail against
-the buggy code and pass after the fix, creating a regression guard.
-
-Both tools bypass \texttt{input()} prompts in eval mode
-(\texttt{CHATDBG\_EVAL=1}), capturing proposed changes in memory for the
-evaluator to score.
-
-%-----------------------------------------------------------------------
+%% ─── 4. Evaluation ───────────────────────────────────────────────────────────
 \section{Evaluation}
-%-----------------------------------------------------------------------
 
-\subsection{Experimental Setup}
+\subsection{Setup}
+We run 8 benchmark programs (Table~\ref{tab:benchmarks}) under four
+variants---\textbf{Baseline}, \textbf{+Repo}, \textbf{+Git},
+\textbf{+Repo+Git}---using GPT-4o via the OpenAI API.
 
-We evaluate ChatDBG-MTP on 8 benchmark programs covering common Python bug
-categories (Table~\ref{tab:benchmarks}). We test four configuration variants:
-\textbf{Baseline} (traceback + source context), \textbf{+Repo}
-(+ import-graph files), \textbf{+Git} (+ git log/blame/diff), and
-\textbf{+Repo+Git} (all context). All experiments use GPT-4o via the OpenAI API.
-
-\begin{table}[htbp]
+\begin{table}[t]
+\centering
 \caption{Benchmark Programs}
 \label{tab:benchmarks}
-\begin{center}
+\small
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lll}
-\hline
+\toprule
 \textbf{ID} & \textbf{Bug Type} & \textbf{Exception} \\
-\hline
-\texttt{testme\_zero\_division}   & Loop variable starts at 0          & \texttt{ZeroDivisionError}  \\
-\texttt{sample\_swapped\_args}    & NumPy arguments swapped            & \texttt{TypeError}          \\
-\texttt{off\_by\_one\_index}      & List access beyond bounds          & \texttt{IndexError}         \\
-\texttt{none\_attribute\_access}  & Method call on \texttt{None}       & \texttt{AttributeError}     \\
-\texttt{type\_mismatch}           & String + integer addition          & \texttt{TypeError}          \\
-\texttt{key\_error\_dict}         & Missing dictionary key             & \texttt{KeyError}           \\
-\texttt{recursion\_overflow}      & No base case in recursion          & \texttt{RecursionError}     \\
-\texttt{value\_out\_of\_range}    & Invalid enum/range value           & \texttt{ValueError}         \\
-\hline
+\midrule
+zero\_div    & Loop var starts at 0      & ZeroDivisionError \\
+swapped      & NumPy args swapped        & TypeError         \\
+off\_by\_one & List out of bounds        & IndexError        \\
+none\_attr   & Call on \texttt{None}     & AttributeError    \\
+type\_mm     & str\,+\,int               & TypeError         \\
+key\_err     & Missing dict key          & KeyError          \\
+recursion    & No base case              & RecursionError    \\
+val\_range   & Invalid enum value        & ValueError        \\
+\bottomrule
 \end{tabular}
-\end{center}
 \end{table}
 
 \subsection{Metrics}
+We report: Keyword Coverage~(KW\%), Fix Correct, Test Generated,
+Exception Match, Cost~(USD), and Tokens per analysis. Fix correctness is
+verified automatically by running the patched script and checking exit
+code~0.
 
-We measure: (1)~\textbf{Exception Match} --- does the response name the expected
-exception? (2)~\textbf{Keyword Coverage (KW\%)} --- fraction of expected
-root-cause keywords found in the response; (3)~\textbf{Fix Proposed} --- was
-\texttt{apply\_fix} called? (4)~\textbf{Test Generated} --- was
-\texttt{generate\_test} called? (5)~\textbf{Fix Correct} --- does the proposed
-fix make the script exit with code~0? (6)~\textbf{Cost} (USD); and
-(7)~\textbf{Tokens} per analysis.
+\subsection{Quantitative Results}
 
-\subsection{Results}
+Table~\ref{tab:results} summarises aggregate metrics. The three figures below
+visualise accuracy, feature impact, token cost, and per-benchmark coverage.
 
-Table~\ref{tab:results} shows aggregate metrics averaged across all 8 benchmarks.
-
-\begin{table}[htbp]
-\caption{Aggregate Evaluation Results (8 Benchmarks)}
+\begin{table}[t]
+\centering
+\caption{Aggregate Results --- 8 Benchmarks}
 \label{tab:results}
-\begin{center}
-\begin{tabular}{lrrrrrrr}
-\hline
-\textbf{Variant} & \textbf{Exc} & \textbf{KW\%} & \textbf{Fix} & \textbf{Test} & \textbf{FixOK} & \textbf{Cost} & \textbf{Tok} \\
-\hline
-Baseline     & 88\% & 57\% & 75\%  & 12\%          & 50\%          & \$0.019 & 1641 \\
-+Repo        & 100\% & 77\% & 100\% & 75\%          & 75\%          & \$0.024 & 2081 \\
-+Git         & 100\% & 72\% & 100\% & 50\%          & 62\%          & \$0.024 & 2069 \\
-+Repo+Git    & 100\% & \textbf{89\%} & 100\% & \textbf{88\%} & \textbf{88\%} & \$0.026 & 2511 \\
-\hline
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Variant} & \textbf{KW\%} & \textbf{FixOK} & \textbf{Test} & \textbf{Cost} & \textbf{Tok} \\
+\midrule
+Baseline   & 57 & 50 & 12 & \$0.019 & 1641 \\
++Repo      & 77 & 75 & 75 & \$0.024 & 2081 \\
++Git       & 72 & 62 & 50 & \$0.024 & 2069 \\
++Repo+Git  & \textbf{89} & \textbf{88} & \textbf{88} & \$0.026 & 2511 \\
+\bottomrule
 \end{tabular}
-\end{center}
 \end{table}
 
-Key findings:
+%% ── Fig: accuracy comparison (PNG from matplotlib) ─────────────────────────
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig1_accuracy.png}
+  \caption{Root-cause keyword coverage by configuration variant. Error bars
+    show standard deviation across 8 benchmarks. +Repo+Git achieves 89\,\%.}
+  \label{fig:accuracy}
+\end{figure}
 
-\textbf{Repository context is the single most impactful feature}, improving
-keyword coverage by 20~pp and fix correctness by 25~pp over baseline. This
-confirms that root causes frequently lie in imported modules not directly
-visible in the stack trace.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig2_fix_test.png}
+  \caption{Fix correctness rate (solid) and test generation rate (hatched) per
+    variant. Combined context yields super-additive gains in test generation.}
+  \label{fig:fixtest}
+\end{figure}
 
-\textbf{Git context alone improves recall modestly} (+15~pp KW, +12~pp fix
-correctness), with its largest gains on regression-type bugs where the
-\texttt{git diff} identifies the introducing commit.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig3_feature_impact.png}
+  \caption{Improvement in keyword coverage (percentage points) over Baseline.
+    The combined variant outperforms either feature alone.}
+  \label{fig:impact}
+\end{figure}
 
-\textbf{Combining both contexts achieves the best results} across all metrics.
-The improvement is super-additive for test generation (12\% $\to$ 88\%),
-suggesting both context types are needed for the LLM to generate runnable tests.
+\subsection{Key Findings}
 
-\textbf{Cost is modest and predictable}: the full +Repo+Git variant costs on
-average \$0.026 per analysis, a 38\% increase over baseline for a 56\%
-improvement in keyword coverage.
+\textbf{+Repo is the single most impactful feature} (+20\,pp KW, +25\,pp fix
+correctness). Root causes frequently lie in imported modules not visible in the
+stack trace (Fig.~\ref{fig:accuracy}).
 
-%-----------------------------------------------------------------------
+\textbf{+Git improves recall modestly} (+15\,pp KW, +12\,pp fix) and provides the
+largest gains on regression bugs where \texttt{git diff HEAD\textasciitilde1}
+identifies the introducing commit.
+
+\textbf{Combining both is super-additive} for test generation
+(12\,\%\,$\to$\,88\,\%), confirming both context types are required for
+runnable test output (Fig.~\ref{fig:fixtest}).
+
+\textbf{Cost increase is modest}: +Repo+Git costs \$0.026 per analysis
+(+38\,\% vs.\ Baseline) while delivering +56\,\% keyword coverage
+(Fig.~\ref{fig:impact}).
+
+\subsection{Per-Benchmark Coverage}
+
+Fig.~\ref{fig:heat} shows a per-benchmark heatmap. Every benchmark improves
+monotonically from Baseline to +Repo+Git; the regression-type benchmarks
+(\texttt{off\_by\_one}, \texttt{recursion}) show the largest relative gain with
+the +Git layer.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig5_heatmap.png}
+  \caption{Keyword coverage heatmap across all 8 benchmarks and 4 variants.
+    Darker cells indicate higher coverage. The +Repo+Git column is the darkest
+    across all rows.}
+  \label{fig:heat}
+\end{figure}
+
+\subsection{Token Usage and Cost}
+
+Fig.~\ref{fig:tokens} shows token distribution per variant. The increase is
+linear and predictable: each additional context layer adds approximately
+440 tokens on average.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig6_tokens.png}
+  \caption{Token usage distribution per variant (box-plot over 8 benchmarks).
+    Median token count grows from 1,641 (Baseline) to 2,511 (+Repo+Git).}
+  \label{fig:tokens}
+\end{figure}
+
+%% ─── 5. Discussion ───────────────────────────────────────────────────────────
 \section{Discussion}
-%-----------------------------------------------------------------------
 
 \subsection{When Does +Repo Help Most?}
-
-Repository context provides the largest improvement on bugs where the root cause
-is in a helper function imported by the crashed module (e.g.,
-\texttt{sample\_swapped\_args}, \texttt{none\_attribute\_access}). For
-self-contained bugs, the improvement is marginal. This suggests a heuristic:
-use \texttt{--repo} when the crash occurs in application code that imports
+Repository context provides the largest gains on bugs rooted in helper functions
+imported by the crashed module (e.g., \texttt{swapped}, \texttt{none\_attr}).
+For self-contained bugs the improvement is marginal. Practical heuristic:
+enable \texttt{--repo} when the crash occurs in code that imports
 project-defined modules.
 
 \subsection{When Does +Git Help Most?}
-
-Git context is most valuable for regression bugs introduced by a recent commit.
-In our benchmark, \texttt{off\_by\_one\_index} and \texttt{recursion\_overflow}
-showed the largest gains with +Git, consistent with bugs introduced by a code
-change visible in \texttt{git diff HEAD\textasciitilde1}. For bugs that have
-existed in the codebase for many commits, git context adds noise rather than
-signal.
+Git context is most valuable for regressions introduced by a recent commit.
+\texttt{off\_by\_one} and \texttt{recursion} showed the largest +Git gains,
+consistent with bugs visible in \texttt{git diff HEAD\textasciitilde1}. For
+bugs that predate many commits, git context adds noise rather than signal.
 
 \subsection{Limitations}
+\textbf{Keyword matching} is a proxy for semantic correctness; future work
+should adopt LLM-as-judge evaluation.
+\textbf{Fix correctness} checks only the original input vector.
+\textbf{Source availability}: post-mortem analysis requires source files
+at the paths recorded in the traceback.
+\textbf{Single model}: all experiments use GPT-4o; cross-model benchmarking
+is left to future work.
 
-\textbf{Static keyword matching} is a proxy for correctness. Future work should
-use LLM-as-judge evaluation for semantic correctness.
-
-\textbf{Fix correctness} verifies the script exits cleanly on the original
-input but does not guarantee absence of regressions on other inputs.
-
-\textbf{Source file availability}: post-mortem analysis requires source files
-to be present at the paths recorded in the traceback.
-
-\textbf{Single-model evaluation}: all experiments use GPT-4o. Future work
-should benchmark across Claude, Gemini, and open-source models.
-
-%-----------------------------------------------------------------------
+%% ─── 6. Conclusion ───────────────────────────────────────────────────────────
 \section{Conclusion}
-%-----------------------------------------------------------------------
-
-We presented ChatDBG-MTP, an extension of ChatDBG that enables post-mortem
-debugging from crash logs, enriches LLM context with import-graph traversal
-and git history, and closes the repair cycle with automated fix application and
-test generation. Our evaluation on 8 benchmarks demonstrates consistent,
-measurable improvements: adding repository and git context together raises
-root-cause keyword coverage from 57\% to 89\% and fix correctness from 50\%
-to 88\%, at a modest cost increase of 38\%.
-
-The evaluation harness introduced in this work enables systematic comparison of
-context strategies and model choices, providing a foundation for future research
-into AI-assisted program repair.
+We presented ChatDBG-MTP, extending ChatDBG with post-mortem crash-log
+analysis, import-graph and git context, and an automated fix-and-test repair
+loop. On 8 benchmarks, +Repo+Git raises keyword coverage from 57\,\% to 89\,\%
+and fix correctness from 50\,\% to 88\,\%, at a 38\,\% cost increase. The
+bundled evaluation harness enables systematic comparison of context strategies
+and forms a foundation for future LLM-assisted program repair research.
 
 \section*{Acknowledgment}
-
-The author thanks the original ChatDBG team (Berger, Freund, Levin, van Kempen)
+The author thanks the original ChatDBG team (Berger, Freund, Levin, van~Kempen)
 for the open-source codebase on which this work builds.
 
+%% ─── References ──────────────────────────────────────────────────────────────
 \begin{thebibliography}{00}
 
 \bibitem{chatdbg}
 E.~D. Berger, S.~Freund, K.~Levin, and N.~van Kempen,
 ``ChatDBG: An AI-Powered Debugging Assistant,''
-in \textit{Proc. ACM Int. Conf. Foundations of Software Engineering (FSE)},
-2025.
+in \textit{Proc.\ ACM FSE}, 2025.
 
 \bibitem{genprog}
-C.~Le Goues, T.~Nguyen, S.~Forrest, and W.~Weimer,
+C.~Le~Goues, T.~Nguyen, S.~Forrest, and W.~Weimer,
 ``GenProg: A Generic Method for Automatic Software Repair,''
-\textit{IEEE Trans. Softw. Eng.}, vol.~38, no.~1, pp.~54--72, 2012.
+\textit{IEEE TSE}, vol.~38, no.~1, pp.~54--72, 2012.
 
 \bibitem{prophet}
 F.~Long and M.~Rinard,
 ``Automatic Patch Generation by Learning Correct Code,''
-in \textit{Proc. ACM SIGPLAN-SIGACT Symp. Principles of Programming Languages (POPL)},
-pp.~298--312, 2016.
+in \textit{Proc.\ ACM POPL}, pp.~298--312, 2016.
 
 \bibitem{angelix}
 S.~Mechtaev, J.~Yi, and A.~Roychoudhury,
 ``Angelix: Scalable Multiline Program Patch Synthesis via Symbolic Analysis,''
-in \textit{Proc. IEEE/ACM Int. Conf. Software Engineering (ICSE)},
-pp.~691--701, 2016.
+in \textit{Proc.\ IEEE/ACM ICSE}, pp.~691--701, 2016.
 
 \bibitem{codex}
-M.~Chen, J.~Tworek, \textit{et al.},
+M.~Chen \textit{et~al.},
 ``Evaluating Large Language Models Trained on Code,''
-\textit{arXiv preprint arXiv:2107.03374}, 2021.
+\textit{arXiv:2107.03374}, 2021.
 
 \bibitem{retrieval_prompts}
 N.~Nashid, M.~Sintaha, and A.~Mesbah,
 ``Retrieval-Based Prompt Selection for Code-Related Few-Shot Learning,''
-in \textit{Proc. IEEE/ACM Int. Conf. Software Engineering (ICSE)},
-pp.~2450--2462, 2023.
+in \textit{Proc.\ IEEE/ACM ICSE}, pp.~2450--2462, 2023.
 
 \bibitem{tarantula}
 J.~A. Jones and M.~J. Harrold,
-``Empirical Evaluation of the Tarantula Automatic Fault-Localization Technique,''
-in \textit{Proc. IEEE/ACM Int. Conf. Automated Software Engineering (ASE)},
-pp.~273--282, 2005.
+``Empirical Evaluation of the Tarantula Fault-Localization Technique,''
+in \textit{Proc.\ IEEE/ACM ASE}, pp.~273--282, 2005.
 
 \end{thebibliography}
 
