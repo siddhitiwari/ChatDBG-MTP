@@ -4,6 +4,7 @@ from typing import Optional
 from chatdbg.assistant.assistant import Assistant, AssistantError
 from chatdbg.util.config import chatdbg_config
 from chatdbg.util.log import ChatDBGLog
+from chatdbg.util.fix import apply_fix
 from chatdbg.util.prompts import build_postmortem_prompt, postmortem_instructions
 
 from .context import build_source_context
@@ -24,8 +25,9 @@ def _run_analysis(text: str, repo_path: Optional[str] = None) -> None:
         relevant = find_relevant_files(crash, repo_path)
         repo_context = build_repo_context(relevant)
 
+    functions = [apply_fix]
     prompt = build_postmortem_prompt(crash.raw_traceback, source_context, repo_context)
-    instructions = postmortem_instructions()
+    instructions = postmortem_instructions(functions)
 
     log = ChatDBGLog(
         log_filename=chatdbg_config.log,
@@ -38,7 +40,7 @@ def _run_analysis(text: str, repo_path: Optional[str] = None) -> None:
         assistant = Assistant(
             instructions,
             model=chatdbg_config.model,
-            functions=[],
+            functions=functions,
             listeners=[printer, log],
         )
         stats = assistant.query(prompt, user_text="")

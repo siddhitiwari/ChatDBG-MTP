@@ -67,7 +67,7 @@ def build_postmortem_prompt(
     )
 
 
-def postmortem_instructions() -> str:
+def postmortem_instructions(functions: List[Callable[[Any], Any]] = []) -> str:
     file_path = os.path.join(
         os.path.dirname(__file__), "instructions/postmortem.txt"
     )
@@ -75,8 +75,9 @@ def postmortem_instructions() -> str:
         file_path = os.path.join(
             os.path.dirname(__file__), "instructions/default.txt"
         )
+    function_descriptions = [json.loads(f.__doc__)["description"] for f in functions]
     with open(file_path, "r") as f:
-        return f.read().format_map({"functions": ""})
+        return f.read().format_map({"functions": "\n\n".join(function_descriptions)})
 
 
 def initial_instructions(functions: List[Callable[[Any], Any]]) -> str:
