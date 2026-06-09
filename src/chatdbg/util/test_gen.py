@@ -1,5 +1,15 @@
 import os
 
+_eval_captures: list[dict] = []
+
+
+def clear_eval_captures() -> None:
+    _eval_captures.clear()
+
+
+def get_eval_captures() -> list[dict]:
+    return list(_eval_captures)
+
 
 def generate_test(filename: str, test_code: str) -> tuple[str, str]:
     """
@@ -23,6 +33,11 @@ def generate_test(filename: str, test_code: str) -> tuple[str, str]:
     }
     """
     call = f"generate_test({filename!r})"
+
+    # Eval mode: capture without prompting or writing
+    if os.environ.get("CHATDBG_EVAL"):
+        _eval_captures.append({"filename": filename, "test_code": test_code})
+        return call, f"Test captured for evaluation (not written): {filename}"
 
     print(f"\n[ChatDBG] Proposed test → {filename}:\n")
     print(test_code)

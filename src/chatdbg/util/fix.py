@@ -1,6 +1,16 @@
 import difflib
 import os
 
+_eval_captures: list[dict] = []
+
+
+def clear_eval_captures() -> None:
+    _eval_captures.clear()
+
+
+def get_eval_captures() -> list[dict]:
+    return list(_eval_captures)
+
 
 def apply_fix(filename: str, old_code: str, new_code: str) -> tuple[str, str]:
     """
@@ -38,7 +48,6 @@ def apply_fix(filename: str, old_code: str, new_code: str) -> tuple[str, str]:
     except IOError as e:
         return call, f"Error reading file: {e}"
 
-    # Normalize line endings for matching, then restore original style on write
     normalized = content.replace("\r\n", "\n")
     old_normalized = old_code.replace("\r\n", "\n")
     new_normalized = new_code.replace("\r\n", "\n")
@@ -58,6 +67,13 @@ def apply_fix(filename: str, old_code: str, new_code: str) -> tuple[str, str]:
         )
     )
 
+    # Eval mode: capture without prompting or writing
+    if os.environ.get("CHATDBG_EVAL"):
+        _eval_captures.append(
+            {"filename": filename, "old_code": old_normalized, "new_code": new_normalized}
+        )
+        return call, f"Fix captured for evaluation (not written): {filename}"
+
     print(f"\n[ChatDBG] Proposed fix for {filename}:\n")
     print(diff or "(no changes — old and new code are identical)")
 
@@ -70,7 +86,6 @@ def apply_fix(filename: str, old_code: str, new_code: str) -> tuple[str, str]:
         return call, "Fix not applied (user declined)."
 
     new_content = normalized.replace(old_normalized, new_normalized, 1)
-    # Restore original line endings if the file used CRLF
     if "\r\n" in content:
         new_content = new_content.replace("\n", "\r\n")
 

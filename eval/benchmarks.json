@@ -1,0 +1,16 @@
+[
+  {
+    "id": "testme_zero_division",
+    "script": "samples/python/testme.py",
+    "description": "ZeroDivisionError: loop variable i starts at 0 in range(100)",
+    "expected_exception": "ZeroDivisionError",
+    "root_cause_keywords": ["zero", "division", "range", "loop", "i"]
+  },
+  {
+    "id": "sample_swapped_args",
+    "script": "samples/python/sample.py",
+    "description": "Arguments to np.random.multinomial are swapped (probabilities passed as sample_size)",
+    "expected_exception": "TypeError",
+    "root_cause_keywords": ["argument", "probabilities", "sample_size", "swap", "order"]
+  }
+]
