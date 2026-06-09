@@ -53,6 +53,28 @@ def build_followup_prompt(history: str, extra: str, user_text: str) -> str:
     )
 
 
+def build_postmortem_prompt(
+    raw_traceback: str, source_context: str, user_text: str = ""
+) -> str:
+    return _concat_prompt(
+        _wrap_it("The program crashed with this traceback", raw_traceback),
+        source_context,
+        _user_text_it(user_text),
+    )
+
+
+def postmortem_instructions() -> str:
+    file_path = os.path.join(
+        os.path.dirname(__file__), "instructions/postmortem.txt"
+    )
+    if not os.path.exists(file_path):
+        file_path = os.path.join(
+            os.path.dirname(__file__), "instructions/default.txt"
+        )
+    with open(file_path, "r") as f:
+        return f.read().format_map({"functions": ""})
+
+
 def initial_instructions(functions: List[Callable[[Any], Any]]) -> str:
     if chatdbg_config.instructions == "":
         file_path = os.path.join(

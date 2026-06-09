@@ -9,6 +9,20 @@ from chatdbg.util.help import print_help
 
 
 def main() -> None:
+    if "--analyze" in sys.argv:
+        idx = sys.argv.index("--analyze")
+        if idx + 1 >= len(sys.argv):
+            print("chatdbg: --analyze requires a crash log file argument")
+            print("Usage: chatdbg --analyze <crash_log_file> [--model MODEL]")
+            sys.exit(1)
+        log_file = sys.argv[idx + 1]
+        remaining = sys.argv[1:idx] + sys.argv[idx + 2:]
+        chatdbg_config.parse_user_flags(remaining)
+        from chatdbg.postmortem.analyze import analyze_crash_log
+
+        analyze_crash_log(log_file)
+        return
+
     ipdb.__main__._get_debugger_cls = lambda: ChatDBG
 
     args = chatdbg_config.parse_user_flags(sys.argv[1:])
