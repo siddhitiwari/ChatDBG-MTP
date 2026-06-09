@@ -6,6 +6,7 @@ from chatdbg.util.config import chatdbg_config
 from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.fix import apply_fix
 from chatdbg.util.prompts import build_postmortem_prompt, postmortem_instructions
+from chatdbg.util.test_gen import generate_test
 
 from .context import build_source_context
 from .git_context import build_git_context
@@ -28,7 +29,7 @@ def _run_analysis(text: str, repo_path: Optional[str] = None) -> None:
 
     git_context = build_git_context(crash)
 
-    functions = [apply_fix]
+    functions = [apply_fix, generate_test]
     prompt = build_postmortem_prompt(
         crash.raw_traceback, source_context, repo_context, git_context
     )
