@@ -9,24 +9,11 @@ from .context import build_source_context
 from .parser import parse_python_traceback
 
 
-def analyze_crash_log(filename: str) -> None:
-    """Parse a crash log file and run LLM-based post-mortem analysis on it."""
-    try:
-        with open(filename, "r") as f:
-            text = f.read()
-    except FileNotFoundError:
-        print(f"chatdbg: file not found: {filename}", file=sys.stderr)
-        sys.exit(1)
-    except IOError as e:
-        print(f"chatdbg: error reading file: {e}", file=sys.stderr)
-        sys.exit(1)
-
+def _run_analysis(text: str) -> None:
     crash = parse_python_traceback(text)
     if crash is None:
-        print(
-            f"chatdbg: no Python traceback found in {filename}", file=sys.stderr
-        )
-        sys.exit(1)
+        print("chatdbg: no Python traceback found in input", file=sys.stderr)
+        return
 
     source_context = build_source_context(crash, context=chatdbg_config.context)
     prompt = build_postmortem_prompt(crash.raw_traceback, source_context)
@@ -52,4 +39,23 @@ def analyze_crash_log(filename: str) -> None:
     except AssistantError as e:
         for line in str(e).split("\n"):
             print(f"*** {line}", file=sys.stderr)
+
+
+def analyze_crash_log(filename: str) -> None:
+    """Parse a crash log file and run LLM-based post-mortem analysis on it."""
+    try:
+        with open(filename, "r") as f:
+            text = f.read()
+    except FileNotFoundError:
+        print(f"chatdbg: file not found: {filename}", file=sys.stderr)
         sys.exit(1)
+    except IOError as e:
+        print(f"chatdbg: error reading file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    _run_analysis(text)
+
+
+def analyze_crash_text(text: str) -> None:
+    """Run post-mortem analysis on an in-memory traceback string."""
+    _run_analysis(text)
