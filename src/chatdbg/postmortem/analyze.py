@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 
 from chatdbg.assistant.assistant import Assistant, AssistantError
 from chatdbg.util.config import chatdbg_config
@@ -7,16 +8,23 @@ from chatdbg.util.prompts import build_postmortem_prompt, postmortem_instruction
 
 from .context import build_source_context
 from .parser import parse_python_traceback
+from .repo import build_repo_context, find_relevant_files
 
 
-def _run_analysis(text: str) -> None:
+def _run_analysis(text: str, repo_path: Optional[str] = None) -> None:
     crash = parse_python_traceback(text)
     if crash is None:
         print("chatdbg: no Python traceback found in input", file=sys.stderr)
         return
 
     source_context = build_source_context(crash, context=chatdbg_config.context)
-    prompt = build_postmortem_prompt(crash.raw_traceback, source_context)
+
+    repo_context = ""
+    if repo_path:
+        relevant = find_relevant_files(crash, repo_path)
+        repo_context = build_repo_context(relevant)
+
+    prompt = build_postmortem_prompt(crash.raw_traceback, source_context, repo_context)
     instructions = postmortem_instructions()
 
     log = ChatDBGLog(
@@ -41,7 +49,7 @@ def _run_analysis(text: str) -> None:
             print(f"*** {line}", file=sys.stderr)
 
 
-def analyze_crash_log(filename: str) -> None:
+def analyze_crash_log(filename: str, repo_path: Optional[str] = None) -> None:
     """Parse a crash log file and run LLM-based post-mortem analysis on it."""
     try:
         with open(filename, "r") as f:
@@ -53,9 +61,9 @@ def analyze_crash_log(filename: str) -> None:
         print(f"chatdbg: error reading file: {e}", file=sys.stderr)
         sys.exit(1)
 
-    _run_analysis(text)
+    _run_analysis(text, repo_path=repo_path)
 
 
-def analyze_crash_text(text: str) -> None:
+def analyze_crash_text(text: str, repo_path: Optional[str] = None) -> None:
     """Run post-mortem analysis on an in-memory traceback string."""
-    _run_analysis(text)
+    _run_analysis(text, repo_path=repo_path)

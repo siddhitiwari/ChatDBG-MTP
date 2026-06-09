@@ -13,14 +13,25 @@ def main() -> None:
         idx = sys.argv.index("--analyze")
         if idx + 1 >= len(sys.argv):
             print("chatdbg: --analyze requires a crash log file argument")
-            print("Usage: chatdbg --analyze <crash_log_file> [--model MODEL]")
+            print("Usage: chatdbg --analyze <crash_log_file> [--repo <dir>] [--model MODEL]")
             sys.exit(1)
         log_file = sys.argv[idx + 1]
         remaining = sys.argv[1:idx] + sys.argv[idx + 2:]
+
+        repo_path = None
+        if "--repo" in remaining:
+            repo_idx = remaining.index("--repo")
+            if repo_idx + 1 < len(remaining):
+                repo_path = remaining[repo_idx + 1]
+                remaining = remaining[:repo_idx] + remaining[repo_idx + 2:]
+            else:
+                print("chatdbg: --repo requires a directory argument")
+                sys.exit(1)
+
         chatdbg_config.parse_user_flags(remaining)
         from chatdbg.postmortem.analyze import analyze_crash_log
 
-        analyze_crash_log(log_file)
+        analyze_crash_log(log_file, repo_path=repo_path)
         return
 
     ipdb.__main__._get_debugger_cls = lambda: ChatDBG
