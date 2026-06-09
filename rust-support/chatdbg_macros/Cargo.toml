@@ -1,0 +1,17 @@
+[package]
+name = "chatdbg_macros"
+version = "##VERSION##" # Will be auto-synced with pyproject.toml on release.
+edition = "2021"
+description = "Rust-specific (macro) support for ChatDBG."
+authors = ["Noah Lev Bartell-Mangel <noahlevb@gmail.com>"]
+license = "Apache-2.0"
+readme = "../../README.md"
+homepage = "https://github.com/plasma-umass/ChatDBG/"
+repository = "https://github.com/plasma-umass/ChatDBG/"
+
+[dependencies]
+quote = "1.0.33"
+syn = { version = "2.0.37", features = ["full"] }
+
+[lib]
+proc-macro = true

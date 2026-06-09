@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ChatDBG"
+version = "1.0.1"
+authors = [
+  { name="Emery Berger", email="emery.berger@gmail.com" },
+  { name="Stephen Freund", email="sfreund@williams.edu" },
+  { name="Kyla Levin", email="khlevin@umass.edu" },
+  { name="Nicolas van Kempen", email="nvankemp@gmail.com" },
+]
+dependencies = [
+  "llm-utils>=0.2.8",
+  "openai>=1.29.0",
+  "rich>=13.7.0",
+  "ansicolors>=1.1.8",
+  "traitlets>=5.14.1",
+  "ipdb>=0.13.13",
+  "ipython>=9.0.0",
+  "pygments>=2.0.0",
+  "litellm==1.55.9",
+  "PyYAML>=6.0.1",
+  "ipyflow>=0.0.130",
+  "numpy>=1.26.3",
+]
+description = "AI-assisted debugging. Uses AI to answer 'why'."
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+]
+
+[project.scripts]
+chatdbg = "chatdbg.__main__:main"
+print_chatdbg_log = "chatdbg.util.plog:main"
+
+[project.urls]
+"Homepage" = "https://github.com/plasma-umass/ChatDBG"
+"Bug Tracker" = "https://github.com/plasma-umass/ChatDBG/issues"
